@@ -21,7 +21,7 @@
     "prepublishOnly": "yarn test"
   },
   "dependencies": {
-    "@assettler/core": "^0.4.0",
+    "@assettler/core": "0.x",
     "svgo": "^1.2.0",
     "xml2js": "^0.4.19"
   },
