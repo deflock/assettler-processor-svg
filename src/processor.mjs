@@ -33,15 +33,8 @@ export default class Processor extends GenericProcessor {
     async process(files, params) {
         return super.process(files, params)
             .then(() => {
-                const hashedMap = {};
-
-                for (const asset of Object.keys(this.map)) {
-                    hashedMap[this.map[asset]] = this.map[asset];
-                }
-
                 return Promise.all([
                     this.writeAsJson(this.getOption('mapPaths.resourcesToAssetsJson'), this.map),
-                    this.writeAsJson(this.getOption('mapPaths.hashedAssetsJson'), hashedMap),
                 ]);
             });
     }
