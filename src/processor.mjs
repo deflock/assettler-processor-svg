@@ -1,6 +1,7 @@
 import nodepath from 'path';
 import GenericProcessor from '@assettler/core/lib/generic-processor';
 import SVGO from 'svgo';
+import xml2js from 'xml2js';
 
 /**
  *
@@ -15,14 +16,85 @@ export default class Processor extends GenericProcessor {
             extensions: ['.svg'],
             filenamePattern: '[contentHash:12].[ext]',
             optimize: false,
-            wrapInSymbol: false,
+            convertToSymbol: false,
+            convertToSymbolCallback: null,
         }, options));
 
         this.destDir = destDir;
 
         this.map = {};
 
-        this.svgOptimizer = new SVGO();
+        this.svgOptimizer = new SVGO({
+            plugins: [{
+                cleanupAttrs: true,
+            }, {
+                removeDoctype: true,
+            }, {
+                removeXMLProcInst: true,
+            }, {
+                removeComments: true,
+            }, {
+                removeMetadata: true,
+            }, {
+                removeTitle: true,
+            }, {
+                removeDesc: true,
+            }, {
+                removeUselessDefs: true,
+            }, {
+                removeEditorsNSData: true,
+            }, {
+                removeEmptyAttrs: true,
+            }, {
+                removeHiddenElems: true,
+            }, {
+                removeEmptyText: true,
+            }, {
+                removeEmptyContainers: true,
+            }, {
+                removeViewBox: false,
+            }, {
+                cleanupEnableBackground: true,
+            }, {
+                convertStyleToAttrs: true,
+            }, {
+                convertColors: true,
+            }, {
+                convertPathData: true,
+            }, {
+                convertTransform: true,
+            }, {
+                removeUnknownsAndDefaults: true,
+            }, {
+                removeNonInheritableGroupAttrs: true,
+            }, {
+                removeUselessStrokeAndFill: true,
+            }, {
+                removeUnusedNS: true,
+            }, {
+                cleanupIDs: true,
+            }, {
+                cleanupNumericValues: true,
+            }, {
+                moveElemsAttrsToGroup: true,
+            }, {
+                moveGroupAttrsToElems: true,
+            }, {
+                collapseGroups: true,
+            }, {
+                removeRasterImages: false,
+            }, {
+                mergePaths: true,
+            }, {
+                convertShapeToPath: true,
+            }, {
+                sortAttrs: true,
+            }, {
+                removeDimensions: true,
+            }, {
+                removeAttrs: {attrs: '(stroke|fill)'},
+            }],
+        });
     }
 
     /**
@@ -84,8 +156,28 @@ export default class Processor extends GenericProcessor {
             content = r.data;
         }
 
-        if (this.getOption('wrapInSymbol')) {
-            content = `<symbol>${content}</symbol>`;
+        if (this.getOption('convertToSymbol')) {
+            const svgObj = await this.parseSvg(content);
+
+            const symbolObj = {
+                symbol: {
+                    ...svgObj['svg'],
+                },
+            };
+
+            const cb = this.getOption('convertToSymbolCallback');
+            if (typeof cb === 'function') {
+                cb(symbolObj, srcPath);
+            }
+
+            const builder = new xml2js.Builder({
+                headless: true,
+                renderOpts: {
+                    pretty: false,
+                },
+            });
+
+            content = builder.buildObject(symbolObj);
         }
 
         const destFilename = await this.interpolateFilename(this.getOption('filenamePattern'), {
@@ -97,5 +189,22 @@ export default class Processor extends GenericProcessor {
         await this.writeFile(destPath, content);
 
         this.map[relativePath] = nodepath.relative(this.destDir, destPath);
+    }
+
+    /**
+     * @param {string} content
+     * @returns {Promise<*>}
+     */
+    async parseSvg(content) {
+        const parser = new xml2js.Parser();
+
+        return new Promise((resolve, reject) => {
+            parser.parseString(content, (err, result) => {
+                if (err) {
+                    reject(err);
+                }
+                resolve(result);
+            });
+        });
     }
 }
